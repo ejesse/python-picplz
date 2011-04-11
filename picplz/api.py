@@ -4,6 +4,17 @@ from picplz.objects import PicplzUser, Place
 class PicplzAPI():
     """ picplz API """
     
+    authenticator = None
+    api_base = 'https://api.picplz.com/api/v2'
+    feed_endpoint = api_base + '/feed.json'
+    pic_endpoint = api_base + '/pic.json'
+    like_endpoint = api_base + '/pic/like.json'
+    comment_endpoint = api_base + '/pic/comment.json'
+    user_endpoint = api_base + '/user.json'
+    follow_endpoint = api_base + '/user/follow.json'
+    place_endpoint = api_base + '/place.json'
+    city_endpoint = api_base + '/city.json'
+    
     def get_feed(self,type,pic_formats=None,pic_page_size=None):
         
         return None
