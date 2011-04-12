@@ -15,8 +15,13 @@ class PicplzOauthToken():
     
     key = None
     secret = None
+    picplz_prefix = None
 
-    def __init__(self, key, secret):
+    def __init__(self, picplz_prefix, key, secret):
+        if picplz_prefix is None:
+            ## assume it's '1|'
+            self.picplz_prefix = '1|'
+        self.picplz_prefix = picplz_prefix
         self.key = key
         self.secret = secret
     
@@ -25,16 +30,29 @@ class PicplzOauthToken():
             'oauth_token': self.key,
             'oauth_secret': self.secret,
         }
-        return urllib.urlencode(data)
+        return "%s%s" % (self.picplz_prefix,urllib.urlencode(data))
 
-    def from_string(s):
+    def from_string(oauth_token_string):
         """ Returns a token from something like:
-        oauth_secret=xxx&oauth_token=xxx
+        1|oauth_secret=xxx&oauth_token=xxx
+        no idea know why the '1|' is there
         """
-        params = cgi.parse_qs(s, keep_blank_values=False)
+        
+        split_string = oauth_token_string.split('|')
+        try:
+            s1 = "%s%s" % (split_string[0],"|")
+            s2 = split_string[1]
+        except:
+            ## just do our best, maybe the pipe thing went away
+            s1=''
+            s2 = oauth_token_string
+        
+        
+        params = cgi.parse_qs(s2, keep_blank_values=False)
+        picplz_prefix = s1
         key = params['oauth_token'][0]
         secret = params['oauth_secret'][0]
-        token = PicplzOauthToken(key, secret)
+        token = PicplzOauthToken(picplz_prefix,key, secret)
         return token
 
     from_string = staticmethod(from_string)
@@ -52,13 +70,11 @@ class PicplzAuthenticator():
     authenticated=False
     
     def __init__(self,picplz_client_id,picplz_client_secret,registered_redirect_uri,access_token=None):
+        if access_token is not None:
+            self.access_token = access_token
         self.client_id = picplz_client_id
         self.client_secret = picplz_client_secret
         self.redirect_uri = registered_redirect_uri
-        self.access_token = None
-        if access_token is not None:
-            self.access_token = access_token
-        self.request_code = None
         
     def get_authorization_url(self):
         return build_request_code_url(self.client_id, self.redirect_uri)
