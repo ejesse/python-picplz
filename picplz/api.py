@@ -110,10 +110,11 @@ class PicplzAPI():
             parameters['include_comments']=include_comments
         
         returned_json = self.__make_unauthenticated_request__(self.pic_endpoint, parameters)
-        
-        pic_json = ['value']['pics'][0]
-        
-        return None
+        returned_data = simplejson.loads(returned_json)
+        pic_data = returned_data['value']['pics'][0]
+        pic = Pic.from_dict(self,pic_data)
+
+        return pic
 
     def like_pic(self):
         
