@@ -24,8 +24,7 @@ class PicplzAPI():
         error_text = 'Unknown picplz error'
         result = simplejson.loads(json)
         if result.has_key('result'):
-            result_value = result['result']
-            if result_value == "error":
+            if result['result'] == "error":
                 if result.has_key('text'): 
                     error_text = result['text']
                 raise PicplzError('An error occurred: %s' % (error_text))
@@ -88,6 +87,8 @@ class PicplzAPI():
         if (id is None and place is None and user is None):
             raise PicplzError("get_pic method requires one of: a comma delimited list of pic ids, a PicplzPlace, or PicplzUser")
         
+        if user is not None:
+            return user.get_pics()
         
         pics = []
         
@@ -107,7 +108,7 @@ class PicplzAPI():
         if shorturl_id is not None:
             parameters['shorturl_id']=shorturl_id
         if include_comments is not None:
-            parameters['include_comments']=include_comments
+            parameters['include_comments']=1
         
         returned_json = self.__make_unauthenticated_request__(self.pic_endpoint, parameters)
         returned_data = simplejson.loads(returned_json)
@@ -140,7 +141,25 @@ class PicplzAPI():
     def get_user(self, username=None,id=None,include_detail=False,include_pics=False,pic_page_size=None):
         """ get user info, requires either username or the user's picplz id"""
         
-        user = PicplzUser()
+        if (id is None and username is None):
+            raise PicplzError("get_pic method requires one of a pic id, longurl_id or shorturl_id")
+        
+        parameters = {}
+        if id is not None:
+            parameters['id']=id
+        if username is not None:
+            parameters['username']=username
+        if include_detail:
+            parameters['include_detail']=1
+        if include_pics:
+            parameters['include_pics']=1
+        if pic_page_size is not None:
+            parameters['pic_page_size']=pic_page_size
+        
+        returned_json = self.__make_unauthenticated_request__(self.user_endpoint, parameters)
+        returned_data = simplejson.loads(returned_json)
+        data = returned_data['value']['users'][0]
+        user = PicplzUser.from_dict(self, data)
         
         return user
         

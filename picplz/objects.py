@@ -1,5 +1,6 @@
 import datetime
-
+from picplz.errors import PicplzError
+import simplejson
 
 class PicplzObject():
     api = None
@@ -138,10 +139,6 @@ class Pic(PicplzObject):
         
     from_dict = staticmethod(from_dict)
 
-
-            
-        
-
 class PicplzUser(PicplzObject):
     username = None
     display_name = None
@@ -149,9 +146,11 @@ class PicplzUser(PicplzObject):
     follower_count = 0
     id = None
     icon = None
+    pics = []
     
     @classmethod
     def map(self, api, data):
+        self.api = api
         self.username = data['username']
         self.display_name = data['display_name']
         self.follower_count = data['follower_count']
@@ -164,9 +163,29 @@ class PicplzUser(PicplzObject):
         pic_files_dict['height'] = icon_data['height']
         pic_files_dict['width'] = icon_data['width'] 
         self.icon = PicplzImageFile.from_dict(api, pic_files_dict)
+        try:
+            pics_data = data['pics']
+            for pic_data in pics_data:
+                print pic_data
+                next_pic = Pic.from_dict(self.api,pic_data)
+                print next_pic
+                self.pics.append(next_pic)
+        except:
+            ## no pics
+            pass
 
     def __to_string__(self):
         return "%s <%s>" % (self.display_name, self.username)
+
+    def get_pics(self):
+        if not self.api:
+            raise PicplzError("Objects must have been instantiated with no API. Without an API the object cannot fetch anything :(")
+        if len(self.pics) < 1:
+            pics_user = self.api.get_user(username=self.username,include_pics=True)
+            self.pics = pics_user.pics
+        return self.pics
+            
+        
 
     def from_dict(api,data):
         new_object = PicplzUser()
