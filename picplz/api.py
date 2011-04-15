@@ -1,6 +1,6 @@
 from picplz.objects import PicplzUser, PicplzPlace, PicplzComment, Pic, PicplzCity
 from picplz.errors import PicplzError
-import urllib,urllib2,cgi
+import urllib,urllib2,cgi,simplejson
 
 class PicplzAPI():
     """ picplz API """
@@ -20,12 +20,24 @@ class PicplzAPI():
         if authenticator is not None:
             self.authenticator = authenticator
             
+    def __check_for_picplz_error__(self,json):
+        error_text = 'Unknown picplz error'
+        result = simplejson.loads(json)
+        if result.has_key('result'):
+            result_value = result['result']
+            if result_value == "error":
+                if result.has_key('text'): 
+                    error_text = result['text']
+                raise PicplzError('An error occurred: %s' % (error_text))
+            
     def __make_unauthenticated_request__(self,endpoint,params_dict):
         
         params = urllib.urlencode(params_dict)
         full_uri = "%s?%s" % (endpoint,params)
         response = urllib2.urlopen(full_uri)
-        return response.read()
+        response_text = response.read()
+        self.__check_for_picplz_error__(response_text)
+        return response_text
     
     def __make_authenticated_post__(self,endpoint,params_dict): 
 
@@ -33,7 +45,9 @@ class PicplzAPI():
         data = urllib.urlencode(params)
         request = urllib2.Request(endpoint, data)
         response = urllib2.urlopen(request)
-        return response.read()
+        response_text = response.read()
+        self.__check_for_picplz_error__(response_text)
+        return response_text
         
     def __make_authenticated_put__(self,endpoint,params_dict):
         
@@ -43,7 +57,9 @@ class PicplzAPI():
         request = urllib2.Request(endpoint, data)
         request.get_method = lambda: 'PUT'
         response = opener.open(request)
-        return response.read()
+        response_text = response.read()
+        self.__check_for_picplz_error__(response_text)
+        return response_text
         
     def __make_authenticated_delete__(self,endpoint,params_dict): 
 
@@ -53,11 +69,19 @@ class PicplzAPI():
         request = urllib2.Request(endpoint, data)
         request.get_method = lambda: 'DELETE'
         response = opener.open(request)
-        return response.read()
+        response_text = response.read()
+        self.__check_for_picplz_error__(response_text)
+        return response_text
         
     def get_feed(self,type,pic_formats=None,pic_page_size=None):
         
-        return None
+        parameters = {'type':type}
+        if pic_formats is not None:
+            parameters['pic_formats']=pic_formats
+        if pic_page_size is not None:
+            parameters['pic_page_size']=pic_page_size
+        
+        return self.__make_unauthenticated_request__(self.feed_endpoint, parameters)
     
     def get_pics(self,ids=None,place=None,user=None):
         
@@ -74,6 +98,20 @@ class PicplzAPI():
         
         if (id is None and longurl_id is None and shorturl_id is None):
             raise PicplzError("get_pic method requires one of a pic id, longurl_id or shorturl_id")
+        
+        parameters = {}
+        if id is not None:
+            parameters['id']=id
+        if longurl_id is not None:
+            parameters['longurl_id']=longurl_id
+        if shorturl_id is not None:
+            parameters['shorturl_id']=shorturl_id
+        if include_comments is not None:
+            parameters['include_comments']=include_comments
+        
+        returned_json = self.__make_unauthenticated_request__(self.pic_endpoint, parameters)
+        
+        pic_json = ['value']['pics'][0]
         
         return None
 
