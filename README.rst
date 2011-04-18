@@ -24,10 +24,10 @@ Dependencies
 
 Examples
 ========
-To do anything, create an API instance::
+To do anything, first create an API instance::
 
-from picplz.api import PicplzAPI
-api = PicplzAPI()
+    from picplz.api import PicplzAPI
+    api = PicplzAPI()
 
 Contributing
 ============
