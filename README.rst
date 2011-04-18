@@ -14,9 +14,14 @@ python-picplz is a Python library for interfacing with the `Picplz API <http://s
 
 Installation
 ============
-pip install python-picplz. Otherwise, you can download the
-source from `GitHub <http://github.com/ejesse/python-picplz>`_ and run ``python
-setup.py install``.
+
+Pip:
+
+    pip install python-picplz. 
+
+Otherwise, you can download the source from `GitHub <http://github.com/ejesse/python-picplz>`_ and run:: 
+
+    python setup.py install
 
 Dependencies
 ============
@@ -28,6 +33,30 @@ To do anything, first create an API instance::
 
     from picplz.api import PicplzAPI
     api = PicplzAPI()
+
+Getting a user::
+
+    user = api.get_user(username='ejesse')
+
+Getting a pic by id::
+
+    pic = api.get_pic(id=1534270)
+
+Getting a pic by its longurl_id::
+
+    pic = api.get_pic(longurl_id='rm789')
+
+Getting a pic by its shorturl_id::
+
+    pic = api.get_pic(shorturl_id='Q2s5')
+
+Getting all of a user's pics::
+
+    pics = api.get_pics(user=user)
+
+Or::
+
+    pics = user.fetch_all_pics()
 
 Contributing
 ============
