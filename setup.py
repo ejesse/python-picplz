@@ -9,6 +9,6 @@ setup(name="python-picplz",
       author="Jesse Emery",
       author_email="jesse@onagertech.com",
       url="http://github.com/ejesse/python-picplz",
-      packages = find_packages(),
+      packages = ['picplz'],
       keywords= "picplz library",
       zip_safe = True)

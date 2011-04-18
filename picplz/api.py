@@ -90,7 +90,7 @@ class PicplzAPI():
             raise PicplzError("get_pic method requires one of: a comma delimited list of pic ids, a PicplzPlace, or PicplzUser")
         
         if user is not None:
-            return user.get_pics()
+            return user.fetch_all_pics()
         
         pics = []
         
