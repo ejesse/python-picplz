@@ -72,23 +72,25 @@ class PicplzAPI():
         self.__check_for_picplz_error__(response_text)
         return response_text
         
-    def get_feed(self,type,pic_formats=None,pic_page_size=None):
+    def get_feed(self,type,pic_formats=None,pic_page_size=None,last_pic_id=False):
         
         parameters = {'type':type}
         if pic_formats is not None:
             parameters['pic_formats']=pic_formats
+        if last_pic_id:
+            parameters['last_pic_id']=last_pic_id
         if pic_page_size is not None:
             parameters['pic_page_size']=pic_page_size
         
         return self.__make_unauthenticated_request__(self.feed_endpoint, parameters)
     
-    def get_pics(self,ids=None,place=None,user=None):
+    def get_pics(self,ids=None,place=None,user=None,last_pic_id=False):
         
         if (id is None and place is None and user is None):
             raise PicplzError("get_pic method requires one of: a comma delimited list of pic ids, a PicplzPlace, or PicplzUser")
         
         if user is not None:
-            return user.get_pics()
+            return user.fetch_all_pics()
         
         pics = []
         
@@ -138,7 +140,7 @@ class PicplzAPI():
         
         return None
         
-    def get_user(self, username=None,id=None,include_detail=False,include_pics=False,pic_page_size=None):
+    def get_user(self, username=None,id=None,include_detail=False,include_pics=False,pic_page_size=None,last_pic_id=False):
         """ get user info, requires either username or the user's picplz id"""
         
         if (id is None and username is None):
@@ -153,6 +155,8 @@ class PicplzAPI():
             parameters['include_detail']=1
         if include_pics:
             parameters['include_pics']=1
+        if last_pic_id:
+            parameters['last_pic_id']=last_pic_id
         if pic_page_size is not None:
             parameters['pic_page_size']=pic_page_size
         
@@ -160,6 +164,19 @@ class PicplzAPI():
         returned_data = simplejson.loads(returned_json)
         data = returned_data['value']['users'][0]
         user = PicplzUser.from_dict(self, data)
+        try:
+            has_more_pics = returned_data['value']['users'][0]['more_pics']
+            if has_more_pics:
+                user.__has_more_pics__ = True
+            else:
+                user.__has_more_pics__ = False
+        except:
+            user.__has_more_pics__ = False
+        try:
+            last_pic_id = returned_data['value']['users'][0]['last_pic_id']
+            user.__last_pic_id__ = last_pic_id
+        except:
+            user.__last_pic_id__ = False
         
         return user
         
