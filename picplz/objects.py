@@ -241,11 +241,35 @@ class PicplzComment(PicplzObject):
     
     content = None
     user = None
+    comement_id = None
+    pic = None
+    date = None
+    
+    def map(self, api, data):
+        self.content = data['content']
+        self.id = int(data['id'])
+        try:
+            user_data = data['user']
+            self.creator = PicplzUser.from_dict(api, user_data)
+        except:
+            pass
+        try:
+            self.date = datetime.datetime.fromtimestamp(data['date'])
+        except:
+            pass
     
     def __to_string__(self):
-        return self.content    
+        return self.content
+    
+    def from_dict(api,data):
+        new_object = PicplzComment()
+        new_object.map(api,data)
+        return new_object
+    
+    from_dict = staticmethod(from_dict)
 
 class PicplzPlace(PicplzObject):
+    
     url = None
     id = None
     name = None

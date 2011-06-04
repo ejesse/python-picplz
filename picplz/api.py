@@ -27,7 +27,7 @@ class PicplzAPI():
             if result['result'] == "error":
                 if result.has_key('text'): 
                     error_text = result['text']
-                raise PicplzError('An error occurred: %s' % (error_text))
+                raise PicplzError('An error was returned from PicPlz API: %s' % (error_text))
             
     def __make_unauthenticated_request__(self,endpoint,params_dict):
         
@@ -40,8 +40,8 @@ class PicplzAPI():
     
     def __make_authenticated_post__(self,endpoint,params_dict): 
 
-        params = urllib.urlencode(params_dict)
-        data = urllib.urlencode(params)
+#        params = urllib.urlencode(params_dict)
+        data = urllib.urlencode(params_dict)
         request = urllib2.Request(endpoint, data)
         response = urllib2.urlopen(request)
         response_text = response.read()
@@ -133,18 +133,54 @@ class PicplzAPI():
         
         return None
     
-    def comment(self):
+    def comment(self, comment=None,comment_text=None,id=None,longurl_id=None,shorturl_id=None):
         
         if self.authenticator is None:
             raise PicplzError("comment requires an authenticated API instance")
         
-        return None
+        parameters = {}
+        comment_content=None
+        pic_id = None
+        
+        if comment is None:
+            if (id is None and longurl_id is None and shorturl_id is None):
+                raise PicplzError("comment method requires one of a pic id, longurl_id or shorturl_id")
+            if comment_text is None:
+                raise PicplzError("To make a comment you must supply either a PicplzComment object (with the content field set) or pass in a string to comment_text parameter, otherwise what are you commenting?")
+            comment_content = comment_text
+            if id is not None:
+                pic_id=id
+            if longurl_id is not None:
+                parameters['longurl_id']=longurl_id
+            if shorturl_id is not None:
+                parameters['shorturl_id']=shorturl_id
+        else:
+            if comment.content is None:
+                raise PicplzError("To make a comment you must supply either a PicplzComment object (with the content field set) or pass in a string to comment_text parameter, otherwise what are you commenting?")
+            if comment.pic is None:
+                if (id is None and longurl_id is None and shorturl_id is None):
+                    raise PicplzError("comment method requires one of a pic id, longurl_id or shorturl_id or setting the pic property on a PizPlzComment object")
+            comment_content = comment.content
+            pic_id = comment.pic.id
+            
+        if pic_id is not None:
+            parameters['id'] = pic_id
+        
+        parameters['comment'] = comment_content
+        
+        returned_json = self.__make_authenticated_post__(self.comment_endpoint, parameters)
+        
+        returned_data = simplejson.loads(returned_json)
+        data = returned_data['value']['comment']
+        comment = PicplzComment.from_dict(self, data)
+        
+        return comment
         
     def get_user(self, username=None,id=None,include_detail=False,include_pics=False,pic_page_size=None,last_pic_id=False):
         """ get user info, requires either username or the user's picplz id"""
         
         if (id is None and username is None):
-            raise PicplzError("get_pic method requires one of a pic id, longurl_id or shorturl_id")
+            raise PicplzError("get_user method requires one of a pic id, longurl_id or shorturl_id")
         
         parameters = {}
         if id is not None:
