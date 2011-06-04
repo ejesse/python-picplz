@@ -197,7 +197,12 @@ class PicplzUser(PicplzObject):
             
 
 class PicplzComment(PicplzObject):
-    pass
+    
+    content = None
+    user = None
+    
+    def __to_string__(self):
+        return self.content    
 
 class PicplzPlace(PicplzObject):
     pass
