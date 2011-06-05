@@ -40,8 +40,13 @@ class PicplzAPI():
     
     def __make_authenticated_post__(self,endpoint,params_dict): 
 
+        if not self.authenticator.access_token:
+            raise PicplzError('Authenticated requests require an OAuth access token')
 #        params = urllib.urlencode(params_dict)
-        data = urllib.urlencode(params_dict)
+        params = params_dict
+        params['oauth_token'] = self.authenticator.access_token.key
+        data = urllib.urlencode(params)
+        print data
         request = urllib2.Request(endpoint, data)
         response = urllib2.urlopen(request)
         response_text = response.read()
