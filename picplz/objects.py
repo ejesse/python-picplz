@@ -52,6 +52,13 @@ class PicplzFilter(PicplzObject):
         self.id=id
         self.description=description    
     
+    def map(self, api, data):
+        try:
+            self.id = data['id']
+            self.description = data['description']
+        except:
+            raise PicplzError("Failed mapping filter JSON to object")
+    
     def __to_string__(self):
         return self.description
 
@@ -66,18 +73,59 @@ class UploadPic(PicplzObject):
     file = None
     caption = None
     filter = None
-    share_twitter = False
-    share_facebook = False
-    share_tumblr = False
-    share_posterous = False
-    share_flickr = False
-    share_dropbox = False
+    share_twitter = None
+    share_facebook = None
+    share_tumblr = None
+    share_posterous = None
+    share_flickr = None
+    share_dropbox = None
     latitude = None
     longitude = None
     horizontal_accuracy = None
     vertical_accuracy = None
     altitude = None
     suppress_sharing = False
+    
+    def __to_string__(self):
+        return self.caption
+    
+    def __make_it_bin__(self,value):
+        if value:
+            return 1
+        else:
+            return 0
+    
+    def get_parameters(self):
+        params ={}
+        if self.caption is not None:
+            params['caption'] = self.caption
+        if self.filter is not None:
+            params['filter'] = self.filter.id
+        if self.share_twitter is not None:
+            params['share_twitter'] = self.__make_it_bin__(self.share_twitter)
+        if self.share_facebook is not None:
+            params['share_facebook'] = self.__make_it_bin__(self.share_facebook)
+        if self.share_tumblr is not None:
+            params['share_tumblr'] = self.__make_it_bin__(self.share_tumblr)
+        if self.share_posterous is not None:
+            params['share_posterous'] = self.__make_it_bin__(self.share_posterous)
+        if self.share_flickr is not None:
+            params['share_flickr'] = self.__make_it_bin__(self.share_flickr)
+        if self.share_dropbox is not None:
+            params['share_dropbox'] = self.__make_it_bin__(self.share_dropbox)
+        if self.latitude is not None:
+            params['latitude'] = self.latitude
+        if self.longitude is not None:
+            params['longitude'] = self.longitude
+        if self.horizontal_accuracy is not None:
+            params['horizontal_accuracy'] = self.horizontal_accuracy
+        if self.vertical_accuracy is not None:
+            params['vertical_accuracy'] = self.vertical_accuracy
+        if self.altitude is not None:
+            params['altitude'] = self.altitude
+        if self.suppress_sharing is not None:
+            params['suppress_sharing'] = self.__make_it_bin__(self.suppress_sharing)
+        return params
 
 class Pic(PicplzObject):
     creator = None
@@ -91,6 +139,7 @@ class Pic(PicplzObject):
     id = None
     city=None
     place=None
+    comments=[]
     
     def map(self, api, data):
         """map a JSON object into a model instance."""
@@ -147,6 +196,13 @@ class Pic(PicplzObject):
             self.place = PicplzPlace.from_dict(api, place_data)
         except:
             ## no place, no biggie
+            pass
+        try:
+            comment_string = data['items']
+            for item in comment_string:
+                comment=PicplzComment.from_dict(api, item)
+                self.comments.append(comment)
+        except:
             pass
         
         

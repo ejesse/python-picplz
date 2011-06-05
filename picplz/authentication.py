@@ -90,12 +90,12 @@ class PicplzAuthenticator():
         
         response = urllib2.urlopen(at_url)
         json = response.read()
-        
         try:
             picplz_response = simplejson.loads(json)
             access_token_crazy_picplz_string = picplz_response['access_token']
             #why does this have '1|' in it? who knows... let's just deal with it
-            access_token_string = access_token_crazy_picplz_string.split('|')[1]
+            #access_token_string = access_token_crazy_picplz_string.split('|')[1]
+            access_token_string = access_token_crazy_picplz_string
             self.access_token = PicplzOauthToken.from_string(access_token_string)
             return self.access_token
         except:
