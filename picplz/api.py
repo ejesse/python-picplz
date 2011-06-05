@@ -2,7 +2,7 @@ from cStringIO import StringIO
 from picplz.errors import PicplzError
 from picplz.helpers import MultiPartForm
 from picplz.objects import PicplzUser, PicplzPlace, PicplzComment, Pic, \
-    PicplzCity, PicplzFilter, UploadPic
+    PicplzCity, PicplzFilter, UploadPic, PicplzLike
 import cgi
 import simplejson
 import urllib
@@ -187,19 +187,45 @@ class PicplzAPI():
         return response_text
         
 
-    def like_pic(self):
+    def like_pic(self,id=None,longurl_id=None,shorturl_id=None):
         
         if self.authenticator is None:
             raise PicplzError("like_pic requires an authenticated API instance")
         
-        return None
+        if (id is None and longurl_id is None and shorturl_id is None):
+            raise PicplzError("like_pic method requires one of a pic id, longurl_id or shorturl_id")
+        
+        parameters = {}
+        if id is not None:
+            parameters['id']=id
+        if longurl_id is not None:
+            parameters['longurl_id']=longurl_id
+        if shorturl_id is not None:
+            parameters['shorturl_id']=shorturl_id
+
+        returned_json = self.__make_authenticated_post__(self.like_endpoint, parameters)
+        returned_data = simplejson.loads(returned_json)
+        like_data = returned_data['value']['like']
+        like = PicplzLike.from_dict(self,like_data)
+
+        return like
     
-    def unlike_pic(self):
+    def unlike_pic(self, id):
+        """ the id is the ID of the Like, NOT the pic, confusing! """
         
         if self.authenticator is None:
             raise PicplzError("unlike_pic requires an authenticated API instance")
         
-        return None
+        parameters = {}
+        if id is not None:
+            parameters['id']=id
+        
+        returned_json = self.__make_authenticated_delete__(self.like_endpoint, parameters)
+        returned_data = simplejson.loads(returned_json)
+        #like_data = returned_data['value']['like']
+        #like = PicplzLike.from_dict(self,like_data)
+
+        return returned_data
     
     def comment(self, comment=None,comment_text=None,id=None,longurl_id=None,shorturl_id=None):
         
@@ -325,7 +351,7 @@ class PicplzAPI():
         
         return None
         
-    def get_place(self,id=None,slug=None,include_detail=False,include_pics=False,pic_page_size=None):
+    def get_place(self,id=None,ids=None,slugs=None,slug=None,include_detail=False,include_pics=False,pic_page_size=None):
         
         place = PicplzPlace()
         

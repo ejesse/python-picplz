@@ -215,6 +215,10 @@ class Pic(PicplzObject):
         return new_object
         
     from_dict = staticmethod(from_dict)
+    
+    def like(self):
+        """ convenience method """
+        self.api.like_pic(id=self.id)
 
 class PicplzUser(PicplzObject):
     username = None
@@ -234,19 +238,28 @@ class PicplzUser(PicplzObject):
         self.api = api
         self.username = data['username']
         self.display_name = data['display_name']
-        self.follower_count = data['follower_count']
-        self.following_count = data['following_count']
-        self.id = int(data['id'])
-        self.pics = {}
-        __has_more_pics__=False
-        __last_pic_id__=False
-        icon_data = data['icon']
-        pic_files_dict = {}
-        pic_files_dict['name'] = 'icon'
-        pic_files_dict['img_url'] = icon_data['url']
-        pic_files_dict['height'] = icon_data['height']
-        pic_files_dict['width'] = icon_data['width'] 
-        self.icon = PicplzImageFile.from_dict(api, pic_files_dict)
+        try:
+            self.follower_count = data['follower_count']
+        except:
+            pass
+        try:
+            self.following_count = data['following_count']
+            self.id = int(data['id'])
+        except:
+            pass
+        try:
+            self.pics = {}
+            __has_more_pics__=False
+            __last_pic_id__=False
+            icon_data = data['icon']
+            pic_files_dict = {}
+            pic_files_dict['name'] = 'icon'
+            pic_files_dict['img_url'] = icon_data['url']
+            pic_files_dict['height'] = icon_data['height']
+            pic_files_dict['width'] = icon_data['width'] 
+            self.icon = PicplzImageFile.from_dict(api, pic_files_dict)
+        except:
+            pass
         try:
             pics_data = data['pics']
             for pic_data in pics_data:
@@ -361,6 +374,31 @@ class PicplzCity(PicplzObject):
 
     def from_dict(api,data):
         new_object = PicplzCity()
+        new_object.map(api,data)
+        return new_object
+        
+    from_dict = staticmethod(from_dict)
+    
+class PicplzLike(PicplzObject):
+    
+    date = None
+    id = None
+    picplz_type = 'like'
+    user = None
+    
+    def map(self, api, data):
+        self.id = int(data['id'])
+        try:
+            self.date = datetime.datetime.fromtimestamp(data['date'])
+        except:
+            pass
+        self.user = PicplzUser.from_dict(api, data['user'])
+    
+    def __to_string__(self):
+        return self.id
+
+    def from_dict(api,data):
+        new_object = PicplzLike()
         new_object.map(api,data)
         return new_object
         
