@@ -24,6 +24,7 @@ class PicplzAPI():
     city_endpoint = api_base + '/city.json'
     filters_endpoint = api_base + '/filters.json'
     upload_endpoint = api_base + '/upload_basic.json'
+    print_json = False
     
     def init(self,authenticator=None, print_json=False):
         if authenticator is not None:
@@ -350,16 +351,54 @@ class PicplzAPI():
             raise PicplzError("unfollow_user requires an authenticated API instance")
         
         return None
+    
+    def get_place(self,id=None,slug=None,include_detail=False,include_pics=False,pic_page_size=None):
         
-    def get_place(self,id=None,ids=None,slugs=None,slug=None,include_detail=False,include_pics=False,pic_page_size=None):
+        parameters = {}
+        if id is not None:
+            parameters['id']=id
+        if slug is not None:
+            parameters['slug']=slug
+        if include_detail:
+            parameters['include_detail']=1
+        if include_pics:
+            parameters['include_pics']=1
+        if pic_page_size is not None:
+            parameters['pic_page_size']=pic_page_size
         
-        place = PicplzPlace()
+        returned_json = self.__make_unauthenticated_request__(self.place_endpoint, parameters)
+        returned_data = simplejson.loads(returned_json)
+        data = returned_data['value']['places'][0]
+        
+        place = PicplzPlace.from_dict(self,data)
         
         return place
     
+    def get_places(self,ids=None,slugs=None):
+        pass
+    
     def get_city(self,id=None,slug=None,include_detail=False,include_pics=False,pic_page_size=None):
         
-        place = PicplzCity()
+        parameters = {}
+        if id is not None:
+            parameters['id']=id
+        if slug is not None:
+            parameters['slug']=slug
+        if include_detail:
+            parameters['include_detail']=1
+        if include_pics:
+            parameters['include_pics']=1
+        if pic_page_size is not None:
+            parameters['pic_page_size']=pic_page_size
         
-        return place
+        returned_json = self.__make_unauthenticated_request__(self.city_endpoint, parameters)
+        returned_data = simplejson.loads(returned_json)
+        data = returned_data['value']['cities'][0]
+        
+        city = PicplzCity.from_dict(self,data)
+        
+        return city
+    
+    def get_cities(self,ids=None,slugs=None):
+        pass
         

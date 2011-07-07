@@ -342,11 +342,22 @@ class PicplzPlace(PicplzObject):
     url = None
     id = None
     name = None
+    pics = None
     
     def map(self, api, data):
         self.url = data['url']
         self.id = int(data['id'])
         self.name = data['name']
+        try:
+            pics_data = data['pics']
+            self.pics={}
+            for pic_data in pics_data:
+                next_pic = Pic()
+                next_pic = Pic.from_dict(self.api,pic_data)
+                self.pics[next_pic.id] = next_pic
+        except:
+            ## no pics :(
+            pass        
     
     def __to_string__(self):
         return self.name
@@ -363,11 +374,22 @@ class PicplzCity(PicplzObject):
     url = None
     id = None
     name = None
-    
+    pics = None
+
     def map(self, api, data):
         self.url = data['url']
         self.id = int(data['id'])
         self.name = data['name']
+        try:
+            pics_data = data['pics']
+            self.pics={}
+            for pic_data in pics_data:
+                next_pic = Pic()
+                next_pic = Pic.from_dict(self.api,pic_data)
+                self.pics[next_pic.id] = next_pic
+        except:
+            ## no pics :(
+            pass
     
     def __to_string__(self):
         return self.name
