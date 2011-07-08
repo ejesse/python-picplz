@@ -2,6 +2,8 @@ import datetime
 from picplz.errors import PicplzError
 import simplejson
 
+ENCODING="ISO-8859-1"
+
 class PicplzObject(object):
     api = None
     
@@ -34,7 +36,7 @@ class PicplzImageFile(PicplzObject):
         self.height = int(data['height'])
         
     def __to_string__(self):
-        return self.name
+        return self.name.encode('utf-8')
 
     def from_dict(api,data):
         new_object = PicplzImageFile()
@@ -60,7 +62,7 @@ class PicplzFilter(PicplzObject):
             raise PicplzError("Failed mapping filter JSON to object")
     
     def __to_string__(self):
-        return self.description
+        return self.description.encode('utf-8')
 
     def from_dict(api,data):
         new_object = PicplzFilter()
@@ -207,7 +209,7 @@ class Pic(PicplzObject):
         
         
     def __to_string__(self):
-        return self.caption
+        return self.caption.encode('utf-8')
 
     def from_dict(api,data):
         new_object = Pic()
@@ -328,7 +330,7 @@ class PicplzComment(PicplzObject):
             pass
     
     def __to_string__(self):
-        return self.content
+        return self.content.encode('utf-8')
     
     def from_dict(api,data):
         new_object = PicplzComment()
@@ -360,7 +362,7 @@ class PicplzPlace(PicplzObject):
             pass        
     
     def __to_string__(self):
-        return self.name
+        return self.name.encode('utf-8')
 
     def from_dict(api,data):
         new_object = PicplzPlace()
@@ -392,7 +394,7 @@ class PicplzCity(PicplzObject):
             pass
     
     def __to_string__(self):
-        return self.name
+        return self.name.encode('utf-8')
 
     def from_dict(api,data):
         new_object = PicplzCity()

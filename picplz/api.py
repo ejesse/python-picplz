@@ -3,6 +3,7 @@ from picplz.errors import PicplzError
 from picplz.helpers import MultiPartForm
 from picplz.objects import PicplzUser, PicplzPlace, PicplzComment, Pic, \
     PicplzCity, PicplzFilter, UploadPic, PicplzLike
+from picplz.utils import to_unicode_or_bust
 import cgi
 import simplejson
 import urllib
@@ -46,6 +47,7 @@ class PicplzAPI():
         full_uri = "%s?%s" % (endpoint,params)
         response = urllib2.urlopen(full_uri)
         response_text = response.read()
+        response_text = to_unicode_or_bust(response_text, 'iso-8859-1')
         if self.print_json:
             print response_text
         self.__check_for_picplz_error__(response_text)
@@ -61,6 +63,7 @@ class PicplzAPI():
         request = urllib2.Request(endpoint, data)
         response = urllib2.urlopen(request)
         response_text = response.read()
+        response_text = to_unicode_or_bust(response_text, 'iso-8859-1')
         if self.print_json:
             print response_text
         self.__check_for_picplz_error__(response_text)
@@ -76,6 +79,7 @@ class PicplzAPI():
         request.get_method = lambda: 'PUT'
         response = opener.open(request)
         response_text = response.read()
+        response_text = to_unicode_or_bust(response_text, 'iso-8859-1')
         if self.print_json:
             print response_text
         self.__check_for_picplz_error__(response_text)
@@ -91,6 +95,7 @@ class PicplzAPI():
         request.get_method = lambda: 'DELETE'
         response = opener.open(request)
         response_text = response.read()
+        response_text = to_unicode_or_bust(response_text, 'iso-8859-1')
         if self.print_json:
             print response_text
         self.__check_for_picplz_error__(response_text)
