@@ -26,7 +26,7 @@ class PicplzAPI():
     upload_endpoint = api_base + '/upload_basic.json'
     print_json = False
     
-    def init(self,authenticator=None, print_json=False):
+    def __init__(self,authenticator=None, print_json=False):
         if authenticator is not None:
             self.authenticator = authenticator
         self.print_json = print_json
