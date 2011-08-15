@@ -4,6 +4,7 @@ from picplz.helpers import MultiPartForm
 from picplz.objects import PicplzUser, PicplzPlace, PicplzComment, Pic, \
     PicplzCity, PicplzFilter, UploadPic, PicplzLike
 from picplz.utils import to_unicode_or_bust
+from picplz.authentication import PicplzAuthenticator,PicplzOauthToken
 import cgi
 import simplejson
 import urllib
@@ -27,11 +28,18 @@ class PicplzAPI():
     upload_endpoint = api_base + '/upload_basic.json'
     print_json = False
     
-    def __init__(self,authenticator=None, print_json=False):
+    def __init__(self,picplz_client_id=None,picplz_client_secret=None,registered_redirect_uri=None,authenticator=None, print_json=False, access_token=None, access_token_string=None):
+        if access_token_string is not None:
+            access_token = PicplzOauthToken.from_string(access_token_string)
         if authenticator is not None:
             self.authenticator = authenticator
+        if picplz_client_id is not None and picplz_client_secret is not None and registered_redirect_uri is not None:
+            if access_token is not None:
+                self.authenticator = PicplzAuthenticator(picplz_client_id,picplz_client_secret,registered_redirect_uri,access_token=access_token)
+            else:
+                self.authenticator = PicplzAuthenticator(picplz_client_id,picplz_client_secret,registered_redirect_uri)
         self.print_json = print_json
-            
+
     def __check_for_picplz_error__(self,json):
         error_text = 'Unknown picplz error'
         result = simplejson.loads(json)
@@ -41,7 +49,7 @@ class PicplzAPI():
                     error_text = result['text']
                 raise PicplzError('An error was returned from PicPlz API: %s' % (error_text))
             
-    def __make_unauthenticated_request__(self,endpoint,params_dict):
+    def __make_unauthenticated_get__(self,endpoint,params_dict):
         
         params = urllib.urlencode(params_dict)
         full_uri = "%s?%s" % (endpoint,params)
@@ -53,53 +61,44 @@ class PicplzAPI():
         self.__check_for_picplz_error__(response_text)
         return response_text
     
-    def __make_authenticated_post__(self,endpoint,params_dict): 
-
-        if not self.authenticator.access_token:
-            raise PicplzError('Authenticated requests require an OAuth access token')
+    def __make_authenticated_request__(self,endpoint,params_dict,method='POST'):
+        opener = urllib2.build_opener(urllib2.HTTPHandler)
         params = params_dict
         params['oauth_token'] = self.authenticator.access_token.to_string()
         data = urllib.urlencode(params)
         request = urllib2.Request(endpoint, data)
-        response = urllib2.urlopen(request)
+        request.get_method = lambda: method
+        response = opener.open(request)
         response_text = response.read()
+        print "raw response: %s" % (response_text)
         response_text = to_unicode_or_bust(response_text, 'iso-8859-1')
         if self.print_json:
-            print response_text
-        self.__check_for_picplz_error__(response_text)
+            print "unicode cleaned response %s" % (response_text)
+        #self.__check_for_picplz_error__(response_text)
         return response_text
+    
+    def __make_authenticated_get__(self,endpoint,params_dict): 
+
+        return self.__make_authenticated_request__(endpoint,params_dict, 'GET')
+    
+    def __make_authenticated_post__(self,endpoint,params_dict): 
+
+        return self.__make_authenticated_request__(endpoint,params_dict)
         
     def __make_authenticated_put__(self,endpoint,params_dict):
         
-        opener = urllib2.build_opener(urllib2.HTTPHandler)
-        params = params_dict
-        params['oauth_token'] = self.authenticator.access_token.to_string()
-        data = urllib.urlencode(params)
-        request = urllib2.Request(endpoint, data)
-        request.get_method = lambda: 'PUT'
-        response = opener.open(request)
-        response_text = response.read()
-        response_text = to_unicode_or_bust(response_text, 'iso-8859-1')
-        if self.print_json:
-            print response_text
-        self.__check_for_picplz_error__(response_text)
-        return response_text
+        return self.__make_authenticated_request__(endpoint,params_dict,'PUT')
         
     def __make_authenticated_delete__(self,endpoint,params_dict): 
 
-        opener = urllib2.build_opener(urllib2.HTTPHandler)
-        params = params_dict
-        params['oauth_token'] = self.authenticator.access_token.to_string()
-        data = urllib.urlencode(params)
-        request = urllib2.Request(endpoint, data)
-        request.get_method = lambda: 'DELETE'
-        response = opener.open(request)
-        response_text = response.read()
-        response_text = to_unicode_or_bust(response_text, 'iso-8859-1')
-        if self.print_json:
-            print response_text
-        self.__check_for_picplz_error__(response_text)
-        return response_text
+        return self.__make_authenticated_request__(endpoint,params_dict,'DELETE')
+
+    def get_authorization_url(self):
+        """ convenenience method """
+        return self.authenticator.get_authorization_url()
+    
+    def get_access_token(self,code=None):
+        return self.authenticator.get_access_token(self,code=None)
         
     def get_feed(self,type,pic_formats=None,pic_page_size=None,last_pic_id=False):
         
@@ -111,13 +110,13 @@ class PicplzAPI():
         if pic_page_size is not None:
             parameters['pic_page_size']=pic_page_size
         
-        return self.__make_unauthenticated_request__(self.feed_endpoint, parameters)
+        return self.__make_unauthenticated_get__(self.feed_endpoint, parameters)
     
     def get_filters(self):
         
         parameters={}
         
-        returned_json = self.__make_unauthenticated_request__(self.filters_endpoint, parameters)
+        returned_json = self.__make_unauthenticated_get__(self.filters_endpoint, parameters)
         returned_data = simplejson.loads(returned_json)
         filter_data = returned_data['value']['filters']
         filters = []
@@ -154,7 +153,7 @@ class PicplzAPI():
         if include_comments is not None:
             parameters['include_items']=1
         
-        returned_json = self.__make_unauthenticated_request__(self.pic_endpoint, parameters)
+        returned_json = self.__make_unauthenticated_get__(self.pic_endpoint, parameters)
         returned_data = simplejson.loads(returned_json)
         pic_data = returned_data['value']['pics'][0]
         pic = Pic.from_dict(self,pic_data)
@@ -299,7 +298,10 @@ class PicplzAPI():
         """ get user info, requires either username or the user's picplz id"""
         
         if (id is None and username is None):
-            raise PicplzError("get_user method requires one of a pic id, longurl_id or shorturl_id")
+            if self.authenticator.access_token is not None:
+                id = 'self'
+            else:
+                raise PicplzError("get_user method requires one of a pic id, longurl_id or shorturl_id")
         
         parameters = {}
         if id is not None:
@@ -315,7 +317,9 @@ class PicplzAPI():
         if pic_page_size is not None:
             parameters['pic_page_size']=pic_page_size
         
-        returned_json = self.__make_unauthenticated_request__(self.user_endpoint, parameters)
+        if id == 'self':
+            returned_json = self.__make_authenticated_get__(self.user_endpoint, parameters)
+        returned_json = self.__make_unauthenticated_get__(self.user_endpoint, parameters)
         returned_data = simplejson.loads(returned_json)
         data = returned_data['value']['users'][0]
         user = PicplzUser.from_dict(self, data)
@@ -371,7 +375,7 @@ class PicplzAPI():
         if pic_page_size is not None:
             parameters['pic_page_size']=pic_page_size
         
-        returned_json = self.__make_unauthenticated_request__(self.place_endpoint, parameters)
+        returned_json = self.__make_unauthenticated_get__(self.place_endpoint, parameters)
         returned_data = simplejson.loads(returned_json)
         data = returned_data['value']['places'][0]
         
@@ -396,7 +400,7 @@ class PicplzAPI():
         if pic_page_size is not None:
             parameters['pic_page_size']=pic_page_size
         
-        returned_json = self.__make_unauthenticated_request__(self.city_endpoint, parameters)
+        returned_json = self.__make_unauthenticated_get__(self.city_endpoint, parameters)
         returned_data = simplejson.loads(returned_json)
         data = returned_data['value']['cities'][0]
         
