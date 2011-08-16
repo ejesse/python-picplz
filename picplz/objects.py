@@ -1,8 +1,23 @@
 import datetime
 from picplz.errors import PicplzError
+from picplz.utils import dict_to_object_value
 import simplejson
+import logging
+from picplz import LOG_NAME
+
+log = logging.getLogger(LOG_NAME)
 
 ENCODING="ISO-8859-1"
+
+class Location(object):
+    latitude = None
+    longitude = None
+    
+    def __to_string__(self):
+        return "Location: latitude: %s longitude: %s" % (self.latitude,self.longitude)
+
+    def __repr__(self):
+        return self.__to_string__()
 
 class PicplzObject(object):
     api = None
@@ -30,6 +45,11 @@ class PicplzImageFile(PicplzObject):
     def map(self, api, data):
         """map a dict object into a model instance."""
         self.api=api
+        dict_to_object_value('name', self, data)
+        dict_to_object_value('img_url', self, data, object_field_name='url')
+        dict_to_object_value('width', self, data, type='int')
+        dict_to_object_value('height', self, data, type='int')
+        
         self.name=data['name']
         self.url=data['img_url']
         self.width=int(data['width'])
@@ -55,11 +75,8 @@ class PicplzFilter(PicplzObject):
         self.description=description    
     
     def map(self, api, data):
-        try:
-            self.id = data['id']
-            self.description = data['description']
-        except:
-            raise PicplzError("Failed mapping filter JSON to object")
+        dict_to_object_value('id',self,data)
+        dict_to_object_value('description',self,data)
     
     def __to_string__(self):
         return self.description.encode('utf-8')
@@ -142,46 +159,39 @@ class Pic(PicplzObject):
     city=None
     place=None
     comments=[]
+    location=None
+    api=None
+    
+    def init(self,api=None,data=None):
+        if api is not None:
+            self.api = api
+        if data is not None:
+            self.map(api,data)
     
     def map(self, api, data):
+        self.api = api
         """map a JSON object into a model instance."""
-        try:
-            self.view_count = int(data['view_count'])
-        except:
-            pass
-        try:
-            self.url = data['url']
-        except:
-            pass
-        try:
-            self.caption = data['caption']
-        except:
-            pass
-        try:
-            self.comment_count = data['comment_count']
-        except:
-            pass
-        try:
-            self.like_count = data['like_count']
-        except:
-            pass
-        try:
-            self.id = int(data['id'])
-        except:
-            pass
-        try:
-            self.date = datetime.datetime.fromtimestamp(data['date'])
-        except:
-            pass
+        dict_to_object_value('view_count', self, data, type='int')
+        dict_to_object_value('url', self, data)
+        dict_to_object_value('caption', self, data)
+        dict_to_object_value('comment_count', self, data, type='int')
+        dict_to_object_value('like_count', self, data, type='int')
+        dict_to_object_value('id', self, data, type='int')
+        dict_to_object_value('date', self, data, type='datetime')
+        
+        ## this is confusing, just go with it
         pic_files = {}
         pic_files_dict = {}
         for key in data['pic_files'].keys():
+            pic_dict = data['pic_files'][key]
             pic_files_dict['name'] = key
-            pic_files_dict['img_url'] = data['pic_files'][key]['img_url']
-            pic_files_dict['height'] = data['pic_files'][key]['height']
-            pic_files_dict['width'] = data['pic_files'][key]['width'] 
+            pic_files_dict['img_url'] = pic_dict['img_url']
+            pic_files_dict['height'] = pic_dict['height']
+            pic_files_dict['width'] = pic_dict['width'] 
             pic_files[pic_files_dict['name']] = PicplzImageFile().from_dict(api, pic_files_dict)
         self.pic_files = pic_files
+        
+        
         try:
             creator_data = data['creator']
             self.creator = PicplzUser.from_dict(api, creator_data)
@@ -193,6 +203,12 @@ class Pic(PicplzObject):
         except:
             ## no city, no biggie
             pass
+        
+        if data.has_key('location'):
+            self.location = Location()
+            dict_to_object_value('lat', self.location, data['location'],object_field_name='latitude')
+            dict_to_object_value('lon', self.location, data['location'],object_field_name='longitude')
+
         try:
             place_data = data['place']
             self.place = PicplzPlace.from_dict(api, place_data)
@@ -220,7 +236,10 @@ class Pic(PicplzObject):
     
     def like(self):
         """ convenience method """
-        self.api.like_pic(id=self.id)
+        return self.api.like_pic(pic=self)
+    
+    def unlike(self):
+        return self.api.unlike_pic(pic=self)
 
 class PicplzUser(PicplzObject):
     username = None
@@ -238,17 +257,11 @@ class PicplzUser(PicplzObject):
     
     def map(self, api, data):
         self.api = api
-        self.username = data['username']
-        self.display_name = data['display_name']
-        try:
-            self.follower_count = data['follower_count']
-        except:
-            pass
-        try:
-            self.following_count = data['following_count']
-            self.id = int(data['id'])
-        except:
-            pass
+        dict_to_object_value('username', self, data)
+        dict_to_object_value('display_name', self, data)
+        dict_to_object_value('id', self, data)
+        dict_to_object_value('follower_count', self, data,type='int')
+        dict_to_object_value('following_count', self, data,type='int')
         try:
             self.pics = {}
             __has_more_pics__=False
@@ -288,7 +301,7 @@ class PicplzUser(PicplzObject):
             self.pics[pic_key].creator = self
         if go_back_for_more:
             if pics_user.__has_more_pics__:
-                #recursion FTW
+                # recursion FTW
                 # NomNomNomNomNomNomNomNomNom
                 return self.__fetch_pics__(go_back_for_more=True,last_pic_id=pics_user.__last_pic_id__)
         return self.pics
@@ -317,15 +330,12 @@ class PicplzComment(PicplzObject):
     date = None
     
     def map(self, api, data):
-        self.content = data['content']
-        self.id = int(data['id'])
+        dict_to_object_value('id', self, data)
+        dict_to_object_value('content', self, data)
+        dict_to_object_value('date', self, data,type='datetime')
         try:
             user_data = data['user']
             self.creator = PicplzUser.from_dict(api, user_data)
-        except:
-            pass
-        try:
-            self.date = datetime.datetime.fromtimestamp(data['date'])
         except:
             pass
     
@@ -347,9 +357,9 @@ class PicplzPlace(PicplzObject):
     pics = None
     
     def map(self, api, data):
-        self.url = data['url']
-        self.id = int(data['id'])
-        self.name = data['name']
+        dict_to_object_value('id', self, data)
+        dict_to_object_value('url', self, data)
+        dict_to_object_value('name', self, data)
         try:
             pics_data = data['pics']
             self.pics={}
@@ -379,9 +389,9 @@ class PicplzCity(PicplzObject):
     pics = None
 
     def map(self, api, data):
-        self.url = data['url']
-        self.id = int(data['id'])
-        self.name = data['name']
+        dict_to_object_value('id', self, data)
+        dict_to_object_value('url', self, data)
+        dict_to_object_value('name', self, data)
         try:
             pics_data = data['pics']
             self.pics={}
@@ -411,15 +421,12 @@ class PicplzLike(PicplzObject):
     user = None
     
     def map(self, api, data):
-        self.id = int(data['id'])
-        try:
-            self.date = datetime.datetime.fromtimestamp(data['date'])
-        except:
-            pass
+        dict_to_object_value('id', self, data)
+        dict_to_object_value('date', self, data,type='datetime')
         self.user = PicplzUser.from_dict(api, data['user'])
     
     def __to_string__(self):
-        return self.id
+        return "Picplz Like with id: %s" % (self.id)
 
     def from_dict(api,data):
         new_object = PicplzLike()

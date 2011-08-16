@@ -9,7 +9,11 @@ import cgi
 import simplejson
 import urllib
 import urllib2
+import httplib2
+import logging
+from picplz import LOG_NAME
 
+log = logging.getLogger(LOG_NAME)
 
 class PicplzAPI():
     """ picplz API """
@@ -27,6 +31,8 @@ class PicplzAPI():
     filters_endpoint = api_base + '/filters.json'
     upload_endpoint = api_base + '/upload_basic.json'
     print_json = False
+    authenticated_user = None
+    is_authenticated = False
     
     def __init__(self,picplz_client_id=None,picplz_client_secret=None,registered_redirect_uri=None,authenticator=None, print_json=False, access_token=None, access_token_string=None):
         if access_token_string is not None:
@@ -39,6 +45,13 @@ class PicplzAPI():
             else:
                 self.authenticator = PicplzAuthenticator(picplz_client_id,picplz_client_secret,registered_redirect_uri)
         self.print_json = print_json
+        
+        if self.authenticator is not None:
+            if self.authenticator.access_token is not None:
+                ## go get authenticated user's info
+                self.authenticated_user = self.get_user(id='self')
+                self.is_authenticated = True
+        
 
     def __check_for_picplz_error__(self,json):
         error_text = 'Unknown picplz error'
@@ -53,29 +66,40 @@ class PicplzAPI():
         
         params = urllib.urlencode(params_dict)
         full_uri = "%s?%s" % (endpoint,params)
+        log.debug("Making unauthenticated get request to %s with parameters %s" % (endpoint,params))
         response = urllib2.urlopen(full_uri)
         response_text = response.read()
+        log.debug("Picplz server response: %s" % (response_text))
         response_text = to_unicode_or_bust(response_text, 'iso-8859-1')
-        if self.print_json:
-            print response_text
-        self.__check_for_picplz_error__(response_text)
+        #self.__check_for_picplz_error__(response_text)
         return response_text
     
     def __make_authenticated_request__(self,endpoint,params_dict,method='POST'):
         opener = urllib2.build_opener(urllib2.HTTPHandler)
         params = params_dict
         params['oauth_token'] = self.authenticator.access_token.to_string()
-        data = urllib.urlencode(params)
-        request = urllib2.Request(endpoint, data)
-        request.get_method = lambda: method
-        response = opener.open(request)
-        response_text = response.read()
-        print "raw response: %s" % (response_text)
-        response_text = to_unicode_or_bust(response_text, 'iso-8859-1')
-        if self.print_json:
-            print "unicode cleaned response %s" % (response_text)
+        
+        http = httplib2.Http()
+        
+        headers = {'Content-type': 'application/json'}
+        
+        response = http.request(endpoint,method,headers=headers,body=urllib.urlencode(params))
+        
+        #data = urllib.urlencode(params)
+        #request = urllib2.Request(endpoint, data)
+        #request.get_method = lambda: method
+        #request.add_header('Content-Type', 'text/json')
+        #if method.lower() == 'get' or method.lower() == 'delete':
+        #    params = urllib.urlencode(params)
+        log.debug("Making authenticated %s request to %s with parameters %s" % (method,endpoint,params))
+        #response = opener.open(request)
+        #response_text = response.read()
+        #log.debug("API Response info %s" % (response)
+ #       log.debug("API Response headers %s" % (response.info().headers))
+        log.debug("Picplz server response: %s" % (response))
+        cleaned_response = to_unicode_or_bust(response, 'iso-8859-1')
         #self.__check_for_picplz_error__(response_text)
-        return response_text
+        return cleaned_response
     
     def __make_authenticated_get__(self,endpoint,params_dict): 
 
@@ -128,7 +152,10 @@ class PicplzAPI():
     def get_pics(self,ids=None,place=None,user=None,last_pic_id=False):
         
         if (id is None and place is None and user is None):
-            raise PicplzError("get_pic method requires one of: a comma delimited list of pic ids, a PicplzPlace, or PicplzUser")
+            if self.authenticated_user is None:
+                raise PicplzError("get_pic method requires one of: a comma delimited list of pic ids, a PicplzPlace, or PicplzUser")
+            else:
+                user = self.authenticated_user
         
         if user is not None:
             return user.fetch_all_pics()
@@ -153,6 +180,9 @@ class PicplzAPI():
         if include_comments is not None:
             parameters['include_items']=1
         
+        ## for now, include geo data by default
+        parameters['include_geo']=1
+        
         returned_json = self.__make_unauthenticated_get__(self.pic_endpoint, parameters)
         returned_data = simplejson.loads(returned_json)
         pic_data = returned_data['value']['pics'][0]
@@ -162,7 +192,7 @@ class PicplzAPI():
     
     def upload_pic(self, upload_pic):
         
-        if self.authenticator is None:
+        if not self.is_authenticated:
             raise PicplzError("uploading a new pic requires an authenticated API instance")
 
         parameters = upload_pic.get_parameters()
@@ -192,15 +222,17 @@ class PicplzAPI():
         return response_text
         
 
-    def like_pic(self,id=None,longurl_id=None,shorturl_id=None):
+    def like_pic(self,pic=None,id=None,longurl_id=None,shorturl_id=None):
         
-        if self.authenticator is None:
+        if not self.is_authenticated:
             raise PicplzError("like_pic requires an authenticated API instance")
         
-        if (id is None and longurl_id is None and shorturl_id is None):
+        if (pic is None and id is None and longurl_id is None and shorturl_id is None):
             raise PicplzError("like_pic method requires one of a pic id, longurl_id or shorturl_id")
         
         parameters = {}
+        if pic is not None:
+            parameters['id']=pic.id
         if id is not None:
             parameters['id']=id
         if longurl_id is not None:
@@ -215,15 +247,18 @@ class PicplzAPI():
 
         return like
     
-    def unlike_pic(self, id):
-        """ the id is the ID of the Like, NOT the pic, confusing! """
-        
-        if self.authenticator is None:
+    def unlike_pic(self, id=None, pic=None):
+        if not self.is_authenticated:
             raise PicplzError("unlike_pic requires an authenticated API instance")
+        
+        if id is None and pic is None:
+            raise PicplzError("Pass in a pic object or a pic id, otherwise there's nothing to unlike!")
         
         parameters = {}
         if id is not None:
             parameters['id']=id
+        if pic is not None:
+            parameters['id']=pic.id
         
         returned_json = self.__make_authenticated_delete__(self.like_endpoint, parameters)
         returned_data = simplejson.loads(returned_json)
@@ -234,7 +269,7 @@ class PicplzAPI():
     
     def comment(self, comment=None,comment_text=None,id=None,longurl_id=None,shorturl_id=None):
         
-        if self.authenticator is None:
+        if not self.is_authenticated:
             raise PicplzError("comment requires an authenticated API instance")
         
         parameters = {}
@@ -277,7 +312,7 @@ class PicplzAPI():
     
     def delete_comment(self, comment_id=None, comment=None):
         
-        if self.authenticator is None:
+        if not self.is_authenticated:
             raise PicplzError("deleting a comment requires an authenticated API instance")
         
         if (comment_id is None and comment is None):
@@ -342,21 +377,21 @@ class PicplzAPI():
     def is_authenticated_user_following(self, username=None,id=None):
         """ query whether or not the currently authenticated user is following another user
         requires either username or id of the followee user"""
-        if self.authenticator is None:
+        if not self.is_authenticated:
             raise PicplzError("is_authenticated_user_following requires an authenticated API instance")
         
         return None
         
     def follow_user(self,username=None,id=None):
         
-        if self.authenticator is None:
+        if not self.is_authenticated:
             raise PicplzError("follow_user requires an authenticated API instance")
         
         return None
         
     def unfollow_user(self,username=None,id=None):
 
-        if self.authenticator is None:
+        if not self.is_authenticated:
             raise PicplzError("unfollow_user requires an authenticated API instance")
         
         return None
