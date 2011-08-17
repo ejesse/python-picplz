@@ -79,24 +79,19 @@ class PicplzAPI():
         params = params_dict
         params['oauth_token'] = self.authenticator.access_token.to_string()
         
-        http = httplib2.Http()
-        
-        headers = {'Content-type': 'application/json'}
-        
-        response = http.request(endpoint,method,headers=headers,body=urllib.urlencode(params))
-        
-        #data = urllib.urlencode(params)
-        #request = urllib2.Request(endpoint, data)
-        #request.get_method = lambda: method
-        #request.add_header('Content-Type', 'text/json')
-        #if method.lower() == 'get' or method.lower() == 'delete':
-        #    params = urllib.urlencode(params)
         log.debug("Making authenticated %s request to %s with parameters %s" % (method,endpoint,params))
-        #response = opener.open(request)
-        #response_text = response.read()
-        #log.debug("API Response info %s" % (response)
- #       log.debug("API Response headers %s" % (response.info().headers))
-        log.debug("Picplz server response: %s" % (response))
+        data = urllib.urlencode(params)
+        if method.lower() == 'get' or method.lower() == 'delete':
+            http = httplib2.Http()
+            headers = {'Content-type': 'application/json'}
+            response_info, response = http.request(endpoint,method,headers=headers,body=data)
+        else:
+            request = urllib2.Request(endpoint, data)
+            request.get_method = lambda: method
+            request.add_header('Content-Type', 'text/json')
+            response_base = opener.open(request)
+            response = response_base.read()
+        log.debug("API Response info %s" % (response))
         cleaned_response = to_unicode_or_bust(response, 'iso-8859-1')
         #self.__check_for_picplz_error__(response_text)
         return cleaned_response
