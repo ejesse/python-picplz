@@ -117,7 +117,7 @@ class PicplzAPI():
         return self.authenticator.get_authorization_url()
     
     def get_access_token(self,code=None):
-        return self.authenticator.get_access_token(self,code)
+        return self.authenticator.get_access_token(code)
         
     def get_feed(self,type,pic_formats=None,pic_page_size=None,last_pic_id=False):
         
